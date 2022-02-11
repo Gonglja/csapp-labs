@@ -252,7 +252,7 @@ int isLessOrEqual(int x, int y) {
 int logicalNeg(int x) {
     int signX = x >> 31 & 1;
     int signSubX = (~x + 1) >> 31 & 1;
-  return (!signX & !signSubX);
+  return ((signX^1) & (signSubX^1));
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -297,7 +297,15 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+    int exp  = (uf >> 23) & 0xFF;
+    // Special
+    if( exp == 0xFF)
+        return uf;
+    // Denormal
+    if( exp == 0x0)
+    return ((uf & 0x007fffff)<<1) | (uf & (1<<31));
+    // Normal
+    return uf + (1<<23);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -312,7 +320,16 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+    int TMIN = 1 << 31;
+    int exp  = ((uf >> 23) & 0xFF) - 127;
+    int frac;
+    if (exp > 31) 
+        return TMIN;
+    if (exp < 0)
+        return 0;
+    frac = (uf & 0x007fffff) | 0x00800000;
+    frac = (exp > 23) ? (frac << (exp - 23)) : (frac >> (23 - exp));
+    return (uf & TMIN) ? -frac : frac;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -328,5 +345,13 @@ int floatFloat2Int(unsigned uf) {
  *   Rating: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+    int exp = x + 127;
+    // 0
+    if (exp<0)
+        return 0;
+    // INF
+    if(exp > 0xFF)
+        return 0x7f800000;
+    // 
+    return exp << 23;
 }
